@@ -801,25 +801,29 @@ class AzureAgent(BaseAgent):
     group_name = parameters[self.PARAM_RESOURCE_GROUP]
     region = parameters[self.PARAM_ZONE]
     verbose = parameters[self.PARAM_VERBOSE]
+
     AppScaleLogger.verbose("Creating/Updating the Public IP Address '{}'".
                            format(ip_name), verbose)
     ip_address = PublicIPAddress(
-      location=region, public_ip_allocation_method=IPAllocationMethod.dynamic,
+      location=region,
+      public_ip_allocation_method=IPAllocationMethod.dynamic,
       idle_timeout_in_minutes=4)
     result = network_client.public_ip_addresses.create_or_update(
       group_name, ip_name, ip_address)
     self.sleep_until_update_operation_done(result, ip_name, verbose)
-    public_ip_address = network_client.public_ip_addresses.get(group_name, ip_name)
+    public_ip_address = network_client.public_ip_addresses.\
+      get(group_name, ip_name)
 
     AppScaleLogger.verbose("Creating/Updating the Network Interface '{}'".
                            format(interface_name), verbose)
     network_interface_ip_conf = NetworkInterfaceIPConfiguration(
-      name=interface_name, private_ip_allocation_method=IPAllocationMethod.dynamic,
-      subnet=subnet, public_ip_address=PublicIPAddress(id=(public_ip_address.id)))
-
-    result = network_client.network_interfaces.create_or_update(group_name,
-      interface_name, NetworkInterface(location=region,
-                                       ip_configurations=[network_interface_ip_conf]))
+      name=interface_name, subnet=subnet,
+      private_ip_allocation_method=IPAllocationMethod.dynamic,
+      public_ip_address=PublicIPAddress(id=(public_ip_address.id)))
+    result = network_client.network_interfaces.create_or_update(
+      group_name, interface_name,
+      NetworkInterface(location=region,
+                       ip_configurations=[network_interface_ip_conf]))
     self.sleep_until_update_operation_done(result, interface_name, verbose)
 
 
