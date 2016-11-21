@@ -132,7 +132,7 @@ class AzureAgent(BaseAgent):
 
   # The maximum number of seconds to wait for an Azure VM to be created.
   # (Takes longer than the creation time for other resources.)
-  MAX_VM_CREATION_TIME = 240
+  MAX_VM_CREATION_TIME = 300
 
   # The Virtual Network and Subnet name to use while creating an Azure
   # Virtual machine.
