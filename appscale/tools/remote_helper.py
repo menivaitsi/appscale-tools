@@ -505,6 +505,7 @@ class RemoteHelper(object):
 
 
   @classmethod
+  @threaded
   def ensure_machine_is_compatible(cls, host, keyname, is_verbose):
     """Verifies that the specified host has AppScale installed on it.
 
