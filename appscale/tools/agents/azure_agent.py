@@ -7,7 +7,7 @@ interact with Microsoft Azure.
 # General-purpose Python library imports
 import adal
 import os.path
-import threading
+from Queue import Queue
 import time
 
 # Azure specific imports
@@ -144,6 +144,10 @@ class AzureAgent(BaseAgent):
   # The Storage Azure Resource provider namespace.
   MICROSOFT_STORAGE_RESOURCE = 'Microsoft.Storage'
 
+  # Resource Identifier Cache for Azure. Each Resource Identifier matches a
+  #  Public IP Address, a Network Interface and a Virtual Machine.
+  RI_CACHE = Queue()
+
   def assert_credentials_are_valid(self, parameters):
     """ Contacts Azure with the given credentials to ensure that they are
     valid. Gets an access token and a Credentials instance in order to be
@@ -233,18 +237,26 @@ class AzureAgent(BaseAgent):
     private_ips = []
     instance_ids = []
 
-    public_ip_addresses = network_client.public_ip_addresses.list(resource_group)
-    for public_ip in public_ip_addresses:
-      public_ips.append(public_ip.ip_address)
+    resource_identifiers = []
+    while not self.RI_CACHE.empty():
+      resource_identifier = self.RI_CACHE.get()
+      resource_identifiers.append(resource_identifier)
 
-    network_interfaces = network_client.network_interfaces.list(resource_group)
-    for network_interface in network_interfaces:
+      public_ips.append(network_client.public_ip_addresses.get(
+        resource_group, resource_identifier))
+
+      network_interface = network_client.network_interfaces.get(
+        resource_group, resource_identifier)
       for ip_config in network_interface.ip_configurations:
         private_ips.append(ip_config.private_ip_address)
 
-    virtual_machines = compute_client.virtual_machines.list(resource_group)
-    for vm in virtual_machines:
-      instance_ids.append(vm.name)
+      virtual_machine = compute_client.virtual_machines.get(
+        resource_group, resource_identifier)
+      instance_ids.append(virtual_machine.name)
+
+    for resource_identifier in resource_identifiers:
+      self.RI_CACHE.put(resource_identifier)
+
     return public_ips, private_ips, instance_ids
 
   def run_instances(self, count, parameters, security_configured):
@@ -282,7 +294,6 @@ class AzureAgent(BaseAgent):
     public_ips, private_ips, instance_ids = self.describe_instances(parameters)
     AppScaleLogger.verbose("Instance Info:\n{}\n{}\n{}".format(public_ips,
                            private_ips, instance_ids), is_verbose)
-    # time.sleep(30)
     return instance_ids, public_ips, private_ips
 
   @threaded
@@ -295,6 +306,9 @@ class AzureAgent(BaseAgent):
       resource_group, vm_network_name)
     self.create_virtual_machine(credentials, network_client,
       network_interface.id, parameters, vm_network_name)
+
+    time.sleep(2 * self.SLEEP_TIME)
+    self.RI_CACHE.put(vm_network_name)
 
   def create_virtual_machine(self, credentials, network_client, network_id,
                              parameters, vm_network_name):
