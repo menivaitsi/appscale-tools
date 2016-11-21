@@ -242,8 +242,9 @@ class AzureAgent(BaseAgent):
       resource_identifier = self.RI_CACHE.get()
       resource_identifiers.append(resource_identifier)
 
-      public_ips.append(network_client.public_ip_addresses.get(
-        resource_group, resource_identifier))
+      public_ip = network_client.public_ip_addresses.get(
+        resource_group, resource_identifier)
+      public_ips.append(public_ip.ip_address)
 
       network_interface = network_client.network_interfaces.get(
         resource_group, resource_identifier)
