@@ -303,13 +303,17 @@ class AzureAgent(BaseAgent):
     vm_network_name = Haikunator().haikunate()
     self.create_network_interface(network_client, vm_network_name,
       vm_network_name, subnet, parameters)
-    network_interface = network_client.network_interfaces.get(
-      resource_group, vm_network_name)
-    self.create_virtual_machine(credentials, network_client,
-      network_interface.id, parameters, vm_network_name)
+    try:
+      network_interface = network_client.network_interfaces.get(
+        resource_group, vm_network_name)
+      self.create_virtual_machine(credentials, network_client,
+        network_interface.id, parameters, vm_network_name)
+      time.sleep(2 * self.SLEEP_TIME)
+      self.RI_CACHE.put(vm_network_name)
+    except CloudError:
+      AppScaleLogger.warn("Error: Network Interface: {} not found. "
+                          "Skipping...".format(vm_network_name))
 
-    time.sleep(2 * self.SLEEP_TIME)
-    self.RI_CACHE.put(vm_network_name)
 
   def create_virtual_machine(self, credentials, network_client, network_id,
                              parameters, vm_network_name):
