@@ -44,10 +44,11 @@ from azure.mgmt.resource.resources.models import ResourceGroup
 from azure.mgmt.storage import StorageManagementClient
 from azure.mgmt.storage.models import StorageAccountCreateParameters, Sku, SkuName, Kind
 
+from haikunator import Haikunator
+
 from msrestazure.azure_exceptions import ClientRequestError
 from msrestazure.azure_exceptions import CloudError
 
-from haikunator import Haikunator
 
 # AppScale-specific imports
 from appscale.tools.appscale_logger import AppScaleLogger
@@ -56,6 +57,7 @@ from appscale.tools.utils import threaded
 from base_agent import AgentConfigurationException
 from base_agent import AgentRuntimeException
 from base_agent import BaseAgent
+
 
 class AzureAgent(BaseAgent):
   """ AzureAgent defines a specialized BaseAgent that allows for interaction
@@ -149,6 +151,7 @@ class AzureAgent(BaseAgent):
   #  Public IP Address, a Network Interface and a Virtual Machine.
   RI_CACHE = Queue()
 
+
   def assert_credentials_are_valid(self, parameters):
     """ Contacts Azure with the given credentials to ensure that they are
     valid. Gets an access token and a Credentials instance in order to be
@@ -175,6 +178,7 @@ class AzureAgent(BaseAgent):
     except CloudError as error:
       raise AgentConfigurationException("Unable to authenticate using the "
         "credentials provided. Reason: {}".format(error.message))
+
 
   def configure_instance_security(self, parameters):
     """ Configure the resource group and storage account needed to create the
@@ -216,6 +220,7 @@ class AzureAgent(BaseAgent):
     resource_client = ResourceManagementClient(credentials, subscription_id)
     resource_client.providers.register(self.MICROSOFT_COMPUTE_RESOURCE)
     resource_client.providers.register(self.MICROSOFT_NETWORK_RESOURCE)
+
 
   def describe_instances(self, parameters, pending=False):
     """ Queries Microsoft Azure to see which instances are currently
@@ -261,6 +266,7 @@ class AzureAgent(BaseAgent):
 
     return public_ips, private_ips, instance_ids
 
+
   def run_instances(self, count, parameters, security_configured):
     """ Starts 'count' instances in Microsoft Azure, and returns once they
     have been started. Callers should create a network and attach a firewall
@@ -297,6 +303,7 @@ class AzureAgent(BaseAgent):
     AppScaleLogger.verbose("Instance Info:\n{}\n{}\n{}".format(public_ips,
                            private_ips, instance_ids), is_verbose)
     return instance_ids, public_ips, private_ips
+
 
   @threaded
   def create_vm_bundle(self, network_client, subnet, parameters,
@@ -407,6 +414,7 @@ class AzureAgent(BaseAgent):
       static_ip: A str naming the static IP to bind to the given instance.
     """
 
+
   def terminate_instances(self, parameters):
     """ Deletes the instances specified in 'parameters' running in Azure.
     Args:
@@ -429,6 +437,7 @@ class AzureAgent(BaseAgent):
     for handle in handles:
       handle.join()
 
+
   @threaded
   def delete_virtual_machine(self, compute_client, resource_group, verbose,
                              vm_name):
@@ -444,6 +453,7 @@ class AzureAgent(BaseAgent):
     self.sleep_until_delete_operation_done(result, resource_name,
                                            self.MAX_VM_CREATION_TIME, verbose)
 
+
   def sleep_until_delete_operation_done(self, result, resource_name,
                                         max_sleep, verbose):
     """ Sleeps until the delete operation for the resource is completed
@@ -456,16 +466,15 @@ class AzureAgent(BaseAgent):
         be deleted.
       verbose: A boolean indicating whether or not in verbose mode.
     """
-    time_start = time.time()
-    while not result.done():
+    sleep_time = max_sleep
+    while sleep_time > 0:
+      if result.done():
+        break
       AppScaleLogger.verbose("Waiting {0} second(s) for {1} to be deleted.".
                              format(self.SLEEP_TIME, resource_name), verbose)
       time.sleep(self.SLEEP_TIME)
-      total_sleep_time = time.time() - time_start
-      if total_sleep_time > max_sleep:
-        AppScaleLogger.log("Waited {0} second(s) for {1} to be deleted. "
-          "Operation has timed out.".format(total_sleep_time, resource_name))
-        break
+      sleep_time -= self.SLEEP_TIME
+
 
   def does_address_exist(self, parameters):
     """ Verifies that the specified static IP address has been allocated, and
@@ -480,6 +489,7 @@ class AzureAgent(BaseAgent):
       to this user.
     """
 
+
   def does_image_exist(self, parameters):
     """ Verifies that the specified machine image exists in this cloud.
 
@@ -492,6 +502,7 @@ class AzureAgent(BaseAgent):
     """
     return True
 
+
   def does_disk_exist(self, parameters, disk):
     """ Verifies that the specified persistent disk exists in this cloud.
 
@@ -503,6 +514,7 @@ class AzureAgent(BaseAgent):
     Returns:
       True if the named persistent disk exists, and False otherwise,
     """
+
 
   def does_zone_exist(self, parameters):
     """ Verifies that the specified zone exists in this cloud.
@@ -523,6 +535,7 @@ class AzureAgent(BaseAgent):
         if zone in resource_type.locations:
           return True
     return False
+
 
   def cleanup_state(self, parameters):
     """ Removes any remote state that was created to run AppScale instances
@@ -669,6 +682,7 @@ class AzureAgent(BaseAgent):
       params[self.PARAM_STORAGE_ACCOUNT] = self.DEFAULT_STORAGE_ACCT
     return params
 
+
   def get_params_from_yaml(self, keyname):
     """ Searches through the locations.yaml file to build a dict containing the
     parameters necessary to interact with Microsoft Azure.
@@ -692,6 +706,7 @@ class AzureAgent(BaseAgent):
     }
     return params
 
+
   def assert_required_parameters(self, parameters, operation):
     """ Check whether all the parameters required to interact with Azure are
     present in the provided dict.
@@ -708,6 +723,7 @@ class AzureAgent(BaseAgent):
       if not self.has_parameter(param, parameters):
         raise AgentConfigurationException('The required parameter, {0}, was not'
           ' specified.'.format(param))
+
 
   def open_connection(self, parameters):
     """ Connects to Microsoft Azure with the given credentials, creates an
@@ -766,6 +782,7 @@ class AzureAgent(BaseAgent):
     subnet = network_client.subnets.get(group_name, network_name, subnet_name)
     return subnet
 
+
   def create_network_interface(self, network_client, interface_name, ip_name,
                                subnet, parameters):
     """ Creates the Public IP Address resource and uses that to create the
@@ -802,24 +819,25 @@ class AzureAgent(BaseAgent):
                                        ip_configurations=[network_interface_ip_conf]))
     self.sleep_until_update_operation_done(result, interface_name, verbose)
 
+
   def sleep_until_update_operation_done(self, result, resource_name, verbose):
     """ Sleeps until the create/update operation for the resource is completed
       successfully.
+
       Args:
         result: An instance, of the AzureOperationPoller to poll for the status
           of the operation being performed.
         resource_name: The name of the resource being updated.
     """
-    time_start = time.time()
-    while not result.done():
+    sleep_time = self.MAX_SLEEP_TIME
+    while sleep_time > 0:
+      if result.done():
+        break
       AppScaleLogger.verbose("Waiting {0} second(s) for {1} to be created/updated.".
                              format(self.SLEEP_TIME, resource_name), verbose)
       time.sleep(self.SLEEP_TIME)
-      total_sleep_time = time.time() - time_start
-      if total_sleep_time > self.MAX_SLEEP_TIME:
-        AppScaleLogger.log("Waited {0} second(s) for {1} to be created/updated. "
-          "Operation has timed out.".format(total_sleep_time, resource_name))
-        break
+      sleep_time -= self.SLEEP_TIME
+
 
   def create_resource_group(self, parameters, credentials):
     """ Creates a Resource Group for the application using the Service Principal
@@ -872,6 +890,7 @@ class AzureAgent(BaseAgent):
     except CloudError as error:
       raise AgentConfigurationException("Unable to create a resource group "
         "using the credentials provided: {}".format(error.message))
+
 
   def create_storage_account(self, parameters, storage_client):
     """ Creates a Storage Account under the Resource Group, if it does not
