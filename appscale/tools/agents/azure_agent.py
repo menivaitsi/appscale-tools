@@ -54,6 +54,7 @@ from appscale.tools.local_state import LocalState
 from base_agent import AgentConfigurationException
 from base_agent import AgentRuntimeException
 from base_agent import BaseAgent
+from appscale.tools.remote_helper import threaded
 
 class AzureAgent(BaseAgent):
   """ AzureAgent defines a specialized BaseAgent that allows for interaction
@@ -262,6 +263,7 @@ class AzureAgent(BaseAgent):
       public_ips: A list of public IP addresses.
       private_ips: A list of private IP addresses.
     """
+    is_verbose = parameters[self.PARAM_VERBOSE]
     credentials = self.open_connection(parameters)
     resource_group = parameters[self.PARAM_RESOURCE_GROUP]
     subscription_id = parameters[self.PARAM_SUBSCRIBER_ID]
@@ -269,17 +271,30 @@ class AzureAgent(BaseAgent):
     virtual_network = parameters[self.PARAM_GROUP]
     subnet = self.create_virtual_network(network_client, parameters,
                                          virtual_network, virtual_network)
+
+    handles = []
     for _ in range(count):
-      vm_network_name = Haikunator().haikunate()
-      self.create_network_interface(network_client, vm_network_name,
-        vm_network_name, subnet, parameters)
-      network_interface = network_client.network_interfaces.get(
-        resource_group, vm_network_name)
-      self.create_virtual_machine(credentials, network_client,
-        network_interface.id, parameters, vm_network_name)
+      handles.append(self.create_vm_bundle(network_client, subnet, parameters,
+                                           resource_group, credentials))
+    for handle in handles:
+       handle.join()
 
     public_ips, private_ips, instance_ids = self.describe_instances(parameters)
+    AppScaleLogger.verbose("Instance Info:\n{}\n{}\n{}".format(public_ips,
+                           private_ips, instance_ids), is_verbose)
+    # time.sleep(30)
     return instance_ids, public_ips, private_ips
+
+  @threaded
+  def create_vm_bundle(self, network_client, subnet, parameters,
+                       resource_group, credentials):
+    vm_network_name = Haikunator().haikunate()
+    self.create_network_interface(network_client, vm_network_name,
+      vm_network_name, subnet, parameters)
+    network_interface = network_client.network_interfaces.get(
+      resource_group, vm_network_name)
+    self.create_virtual_machine(credentials, network_client,
+      network_interface.id, parameters, vm_network_name)
 
   def create_virtual_machine(self, credentials, network_client, network_id,
                              parameters, vm_network_name):
@@ -377,17 +392,15 @@ class AzureAgent(BaseAgent):
     AppScaleLogger.verbose("Terminating the vm instance/s '{}'".
                            format(instance_ids), verbose)
     compute_client = ComputeManagementClient(credentials, subscription_id)
-    threads = []
+
+    handles = []
     for vm_name in instance_ids:
-      thread = threading.Thread(target=self.delete_virtual_machine,
-                                args=(compute_client, resource_group, verbose,
-                                      vm_name))
-      thread.start()
-      threads.append(thread)
+      handles.append(self.delete_virtual_machine(compute_client, resource_group,
+                                                 verbose, vm_name))
+    for handle in handles:
+      handle.join()
 
-    for x in threads:
-      x.join()
-
+  @threaded
   def delete_virtual_machine(self, compute_client, resource_group, verbose,
                              vm_name):
     """ Deletes the virtual machine from the resource_group specified.
@@ -495,28 +508,86 @@ class AzureAgent(BaseAgent):
     network_client = NetworkManagementClient(credentials, subscription_id)
     verbose = parameters[self.PARAM_VERBOSE]
 
-    AppScaleLogger.log("Deleting the Virtual Network, Public IP Address "
-      "and Network Interface created for this deployment.")
+    AppScaleLogger.log("Deleting Virtual Network(s), Public IP Address(es) "
+      "and Network Interface(s) created for this deployment.")
+
+    handles = []
     network_interfaces = network_client.network_interfaces.list(resource_group)
     for interface in network_interfaces:
-      result = network_client.network_interfaces.delete(resource_group, interface.name)
-      resource_name = 'Network Interface' + ':' + interface.name
-      self.sleep_until_delete_operation_done(result, resource_name,
-                                             self.MAX_SLEEP_TIME, verbose)
+      handles.append(self.delete_nic(network_client, resource_group, interface,
+                                     verbose))
+    for handle in handles:
+      handle.join()
 
+    handles = []
     public_ip_addresses = network_client.public_ip_addresses.list(resource_group)
     for public_ip in public_ip_addresses:
-      result = network_client.public_ip_addresses.delete(resource_group, public_ip.name)
-      resource_name = 'Public IP Address' + ':' + public_ip.name
-      self.sleep_until_delete_operation_done(result, resource_name,
-                                             self.MAX_SLEEP_TIME, verbose)
+      handles.append(self.delete_public_ip(network_client, resource_group,
+                                           public_ip, verbose))
+    for handle in handles:
+      handle.join()
 
+    handles = []
     virtual_networks = network_client.virtual_networks.list(resource_group)
     for network in virtual_networks:
-      result = network_client.virtual_networks.delete(resource_group, network.name)
-      resource_name = 'Virtual Network' + ':' + network.name
-      self.sleep_until_delete_operation_done(result, resource_name,
-                                             self.MAX_SLEEP_TIME, verbose)
+      handles.append(self.delete_vnet(network_client, resource_group,
+                                      network, verbose))
+    for handle in handles:
+      handle.join()
+
+
+  @threaded
+  def delete_nic(self, network_client, resource_group, interface, verbose):
+    """ Deletes given network interface.
+
+    Args:
+      network_client: An Azure NetworkManagementClient object.
+      resource_group: A string representing an Azure Resource Group.
+      interface: The Azure network interface resource to be deleted.
+      verbose: A boolean, True if debug mode is on, False otherwise.
+    """
+    result = network_client.network_interfaces.delete(resource_group,
+                                                      interface.name)
+    resource_name = 'Network Interface' + ':' + interface.name
+    self.sleep_until_delete_operation_done(result, resource_name,
+                                           self.MAX_SLEEP_TIME, verbose)
+
+
+  @threaded
+  def delete_public_ip(self, network_client, resource_group, public_ip,
+                       verbose):
+    """ Deletes given public IP address.
+
+    Args:
+      network_client: An Azure NetworkManagementClient object.
+      resource_group: A string representing an Azure Resource Group.
+      public_ip: The Azure Public IP Address resource to be deleted.
+      verbose: A boolean, True if debug mode is on, False otherwise.
+    """
+    result = network_client.public_ip_addresses.delete(resource_group,
+                                                       public_ip.name)
+    resource_name = 'Public IP Address' + ':' + public_ip.name
+    self.sleep_until_delete_operation_done(result, resource_name,
+                                           self.MAX_SLEEP_TIME, verbose)
+
+
+  @threaded
+  def delete_vnet(self, network_client, resource_group, network,
+                  verbose):
+    """ Deletes given virtual network.
+
+    Args:
+      network_client: An Azure NetworkManagementClient object.
+      resource_group: A string representing an Azure Resource Group.
+      vnet: The Azure Virtual Network resource to be deleted.
+      verbose: A boolean, True if debug mode is on, False otherwise.
+    """
+    result = network_client.virtual_networks.delete(resource_group,
+                                                    network.name)
+    resource_name = 'Virtual Network' + ':' + network.name
+    self.sleep_until_delete_operation_done(result, resource_name,
+                                           self.MAX_SLEEP_TIME, verbose)
+
 
   def get_params_from_args(self, args):
     """ Constructs a dict with only the parameters necessary to interact with

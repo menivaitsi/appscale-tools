@@ -29,6 +29,20 @@ from local_state import APPSCALE_VERSION
 from local_state import LocalState
 
 
+def threaded(func):
+  """ Decorator that allows a function to run in a separate thread.
+
+  Args:
+    func: The function to be run.
+  """
+  def _threaded(*args, **kwargs):
+    """ Executes the given function in a thread. """
+    thread = threading.Thread(target=func, args=args, kwargs=kwargs)
+    thread.start()
+    return thread
+  return _threaded
+
+
 class RemoteHelper(object):
   """RemoteHelper provides a simple interface to interact with other machines
   (typically, AppScale virtual machines).
@@ -213,8 +227,13 @@ class RemoteHelper(object):
       public_ips[0] = options.static_ip
       AppScaleLogger.log("Static IP associated with head node.")
 
+    handles = []
     for public_ip in public_ips:
-      cls.sleep_until_port_is_open(public_ip, cls.SSH_PORT, options.verbose)
+      handles.append(cls.sleep_until_port_is_open(public_ip, cls.SSH_PORT,
+                                                  options.verbose))
+
+    for handle in handles:
+      handle.join()
 
     # Since GCE v1beta15, SSH keys don't immediately get injected to newly
     # spawned VMs. It takes around 30 seconds, so sleep a bit longer to be
@@ -224,14 +243,27 @@ class RemoteHelper(object):
         "machine(s).")
       time.sleep(60)
 
+    # Enable root login on all machines.
+    handles = []
     for public_ip in public_ips:
-      cls.enable_root_login(public_ip, options.keyname,
-        options.infrastructure, options.verbose)
-      cls.copy_ssh_keys_to_node(public_ip, options.keyname, options.verbose)
+      handles.append(cls.enable_root_login(public_ip, options.keyname,
+                                           options.infrastructure,
+                                           options.verbose))
+    for handle in handles:
+      handle.join()
+
+    # Copy SSH keys on all machines.
+    handles = []
+    for public_ip in public_ips:
+      handles.append(cls.copy_ssh_keys_to_node(public_ip, options.keyname,
+                                               options.verbose))
+    for handle in handles:
+      handle.join()
+
     return instance_ids, public_ips, private_ips
 
-
   @classmethod
+  @threaded
   def sleep_until_port_is_open(cls, host, port, is_verbose):
     """Queries the given host to see if the named port is open, and if not,
     waits until it is.
@@ -308,6 +340,7 @@ class RemoteHelper(object):
     return
 
   @classmethod
+  @threaded
   def enable_root_login(cls, host, keyname, infrastructure, is_verbose):
     """Logs into the named host and alters its ssh configuration to enable the
     root user to directly log in.
@@ -415,6 +448,7 @@ class RemoteHelper(object):
 
 
   @classmethod
+  @threaded
   def copy_ssh_keys_to_node(cls, host, keyname, is_verbose):
     """Sets the given SSH keypair as the default key for the named host,
     enabling it to log into other machines in the AppScale deployment without
@@ -447,10 +481,12 @@ class RemoteHelper(object):
       AppScaleException: If the specified host does not have AppScale installed,
         or has the wrong version of AppScale installed.
     """
+    handles = []
     for node in node_layout.nodes:
       try:
-        RemoteHelper.ensure_machine_is_compatible(
-          node.public_ip, options.keyname, options.verbose)
+        handles.append(cls.ensure_machine_is_compatible(node.public_ip,
+                                                        options.keyname,
+                                                        options.verbose))
       except AppScaleException as ase:
         if options.infrastructure:
           if not options.test:
@@ -476,6 +512,9 @@ class RemoteHelper(object):
                       format(exception=str(ase), ip=node.public_ip,
                              version=APPSCALE_VERSION)
         raise AppScaleException(abort_msg)
+
+    for handle in handles:
+      handle.join()
 
 
   @classmethod
