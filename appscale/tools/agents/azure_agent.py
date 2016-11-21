@@ -51,10 +51,10 @@ from haikunator import Haikunator
 # AppScale-specific imports
 from appscale.tools.appscale_logger import AppScaleLogger
 from appscale.tools.local_state import LocalState
+from appscale.tools.utils import threaded
 from base_agent import AgentConfigurationException
 from base_agent import AgentRuntimeException
 from base_agent import BaseAgent
-from appscale.tools.remote_helper import threaded
 
 class AzureAgent(BaseAgent):
   """ AzureAgent defines a specialized BaseAgent that allows for interaction
