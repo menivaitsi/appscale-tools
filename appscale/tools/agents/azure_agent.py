@@ -294,8 +294,9 @@ class AzureAgent(BaseAgent):
 
     handles = []
     for _ in range(count):
-      handles.append(self.create_vm_bundle(network_client, subnet, parameters,
-                                           resource_group, credentials))
+      handles.append(threaded(
+        self.create_vm_bundle(network_client, subnet, parameters,
+                              resource_group, credentials)))
     for handle in handles:
        handle.join()
 
@@ -305,7 +306,6 @@ class AzureAgent(BaseAgent):
     return instance_ids, public_ips, private_ips
 
 
-  @threaded
   def create_vm_bundle(self, network_client, subnet, parameters,
                        resource_group, credentials):
     vm_network_name = Haikunator().haikunate()
@@ -435,13 +435,13 @@ class AzureAgent(BaseAgent):
 
     handles = []
     for vm_name in instance_ids:
-      handles.append(self.delete_virtual_machine(compute_client, resource_group,
-                                                 verbose, vm_name))
+      handles.append(threaded(
+        self.delete_virtual_machine(compute_client, resource_group, verbose,
+                                    vm_name)))
     for handle in handles:
       handle.join()
 
 
-  @threaded
   def delete_virtual_machine(self, compute_client, resource_group, verbose,
                              vm_name):
     """ Deletes the virtual machine from the resource_group specified.
@@ -559,29 +559,29 @@ class AzureAgent(BaseAgent):
     handles = []
     network_interfaces = network_client.network_interfaces.list(resource_group)
     for interface in network_interfaces:
-      handles.append(self.delete_nic(network_client, resource_group, interface,
-                                     verbose))
+      handles.append(threaded(
+        self.delete_nic(network_client, resource_group, interface, verbose)))
     for handle in handles:
       handle.join()
 
     handles = []
     public_ip_addresses = network_client.public_ip_addresses.list(resource_group)
     for public_ip in public_ip_addresses:
-      handles.append(self.delete_public_ip(network_client, resource_group,
-                                           public_ip, verbose))
+      handles.append(threaded(
+        self.delete_public_ip(network_client, resource_group, public_ip,
+                              verbose)))
     for handle in handles:
       handle.join()
 
     handles = []
     virtual_networks = network_client.virtual_networks.list(resource_group)
     for network in virtual_networks:
-      handles.append(self.delete_vnet(network_client, resource_group,
-                                      network, verbose))
+      handles.append(threaded(
+        self.delete_vnet(network_client, resource_group, network, verbose)))
     for handle in handles:
       handle.join()
 
 
-  @threaded
   def delete_nic(self, network_client, resource_group, interface, verbose):
     """ Deletes given network interface.
 
@@ -598,7 +598,6 @@ class AzureAgent(BaseAgent):
                                            self.MAX_SLEEP_TIME, verbose)
 
 
-  @threaded
   def delete_public_ip(self, network_client, resource_group, public_ip,
                        verbose):
     """ Deletes given public IP address.
@@ -616,7 +615,6 @@ class AzureAgent(BaseAgent):
                                            self.MAX_SLEEP_TIME, verbose)
 
 
-  @threaded
   def delete_vnet(self, network_client, resource_group, network,
                   verbose):
     """ Deletes given virtual network.

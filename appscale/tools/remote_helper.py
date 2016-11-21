@@ -216,9 +216,9 @@ class RemoteHelper(object):
 
     handles = []
     for public_ip in public_ips:
-      handles.append(cls.sleep_until_port_is_open(public_ip, cls.SSH_PORT,
-                                                  options.verbose))
-
+      handles.append(threaded(
+        cls.sleep_until_port_is_open(public_ip, cls.SSH_PORT,
+                                     options.verbose)))
     for handle in handles:
       handle.join()
 
@@ -230,27 +230,26 @@ class RemoteHelper(object):
         "machine(s).")
       time.sleep(60)
 
-    # Enable root login on all machines.
+    # Enable root login on all machines in a multi-threaded fashion.
     handles = []
     for public_ip in public_ips:
-      handles.append(cls.enable_root_login(public_ip, options.keyname,
-                                           options.infrastructure,
-                                           options.verbose))
+      handles.append(threaded(
+        cls.enable_root_login(public_ip, options.keyname,
+                              options.infrastructure, options.verbose)))
     for handle in handles:
       handle.join()
 
-    # Copy SSH keys on all machines.
+    # Copy SSH keys on all machines in a multi-threaded fashion.
     handles = []
     for public_ip in public_ips:
-      handles.append(cls.copy_ssh_keys_to_node(public_ip, options.keyname,
-                                               options.verbose))
+      handles.append(threaded(
+        cls.copy_ssh_keys_to_node(public_ip, options.keyname, options.verbose)))
     for handle in handles:
       handle.join()
 
     return instance_ids, public_ips, private_ips
 
   @classmethod
-  @threaded
   def sleep_until_port_is_open(cls, host, port, is_verbose):
     """Queries the given host to see if the named port is open, and if not,
     waits until it is.
@@ -327,7 +326,6 @@ class RemoteHelper(object):
     return
 
   @classmethod
-  @threaded
   def enable_root_login(cls, host, keyname, infrastructure, is_verbose):
     """Logs into the named host and alters its ssh configuration to enable the
     root user to directly log in.
@@ -435,7 +433,6 @@ class RemoteHelper(object):
 
 
   @classmethod
-  @threaded
   def copy_ssh_keys_to_node(cls, host, keyname, is_verbose):
     """Sets the given SSH keypair as the default key for the named host,
     enabling it to log into other machines in the AppScale deployment without
@@ -471,9 +468,9 @@ class RemoteHelper(object):
     handles = []
     for node in node_layout.nodes:
       try:
-        handles.append(cls.ensure_machine_is_compatible(node.public_ip,
-                                                        options.keyname,
-                                                        options.verbose))
+        handles.append(threaded(
+          cls.ensure_machine_is_compatible(node.public_ip, options.keyname,
+                                           options.verbose)))
       except AppScaleException as ase:
         if options.infrastructure:
           if not options.test:
@@ -505,7 +502,6 @@ class RemoteHelper(object):
 
 
   @classmethod
-  @threaded
   def ensure_machine_is_compatible(cls, host, keyname, is_verbose):
     """Verifies that the specified host has AppScale installed on it.
 
