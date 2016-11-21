@@ -44,6 +44,7 @@ from azure.mgmt.resource.resources.models import ResourceGroup
 from azure.mgmt.storage import StorageManagementClient
 from azure.mgmt.storage.models import StorageAccountCreateParameters, Sku, SkuName, Kind
 
+from msrestazure.azure_exceptions import ClientRequestError
 from msrestazure.azure_exceptions import CloudError
 
 from haikunator import Haikunator
@@ -368,25 +369,34 @@ class AzureAgent(BaseAgent):
                      create_option=DiskCreateOptionTypes.from_image,
                      name=vm_network_name, vhd=virtual_hd, image=image_hd)
 
-    compute_client.virtual_machines.create_or_update(
-      resource_group, vm_network_name, VirtualMachine(location=zone,
-                                                      os_profile=os_profile,
-                                                      hardware_profile=hardware_profile,
-                                                      network_profile=network_profile,
-                                                      storage_profile=StorageProfile(
-                                                        os_disk=os_disk)))
+    result = compute_client.virtual_machines.create_or_update(
+      resource_group, vm_network_name,
+      VirtualMachine(location=zone, os_profile=os_profile,
+                     hardware_profile=hardware_profile,
+                     network_profile=network_profile,
+                     storage_profile=StorageProfile(os_disk=os_disk)))
+
+    self.sleep_until_update_operation_done(result, vm_network_name,
+                                           verbose)
 
     # Sleep until an IP address gets associated with the VM.
-    while True:
-      public_ip_address = network_client.public_ip_addresses.get(resource_group,
-                                                                 vm_network_name)
-      if public_ip_address.ip_address:
-        AppScaleLogger.log('Azure VM is available at {}'.
-                           format(public_ip_address.ip_address))
-        break
-      AppScaleLogger.verbose("Waiting {} second(s) for IP address to be "
-        "available".format(self.SLEEP_TIME), verbose)
-      time.sleep(self.SLEEP_TIME)
+    sleep_time = self.MAX_VM_CREATION_TIME
+    while sleep_time > 0:
+      try:
+        public_ip_address = network_client.public_ip_addresses.\
+          get(resource_group, vm_network_name)
+        if public_ip_address.ip_address:
+          AppScaleLogger.log('Azure VM is available at {}'.
+                             format(public_ip_address.ip_address))
+          break
+        AppScaleLogger.verbose("Waiting {} second(s) for IP address to be "
+          "available".format(self.SLEEP_TIME), verbose)
+        time.sleep(sleep_time)
+        sleep_time -= self.SLEEP_TIME
+      except ClientRequestError as client_request_error:
+        AppScaleLogger.warn("Azure Connection Error: {}".format(
+                            str(client_request_error)))
+
 
   def associate_static_ip(self, instance_id, static_ip):
     """ Associates the given static IP address with the given instance ID.
