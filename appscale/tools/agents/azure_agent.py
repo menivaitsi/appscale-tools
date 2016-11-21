@@ -46,7 +46,7 @@ from azure.mgmt.storage.models import StorageAccountCreateParameters, Sku, SkuNa
 
 from haikunator import Haikunator
 
-from msrestazure.azure_exceptions import ClientRequestError
+from msrest.exceptions import ClientRequestError
 from msrestazure.azure_exceptions import CloudError
 
 
