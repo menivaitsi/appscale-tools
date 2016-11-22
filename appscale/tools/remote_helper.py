@@ -216,9 +216,8 @@ class RemoteHelper(object):
 
     handles = []
     for public_ip in public_ips:
-      handles.append(threaded(
-        cls.sleep_until_port_is_open(public_ip, cls.SSH_PORT,
-                                     options.verbose)))
+      handles.append(cls.sleep_until_port_is_open_async(
+        public_ip, cls.SSH_PORT, options.verbose))
     for handle in handles:
       handle.join()
 
@@ -233,17 +232,16 @@ class RemoteHelper(object):
     # Enable root login on all machines in a multi-threaded fashion.
     handles = []
     for public_ip in public_ips:
-      handles.append(threaded(
-        cls.enable_root_login(public_ip, options.keyname,
-                              options.infrastructure, options.verbose)))
+      handles.append(cls.enable_root_login_async(
+        public_ip, options.keyname, options.infrastructure, options.verbose))
     for handle in handles:
       handle.join()
 
     # Copy SSH keys on all machines in a multi-threaded fashion.
     handles = []
     for public_ip in public_ips:
-      handles.append(threaded(
-        cls.copy_ssh_keys_to_node(public_ip, options.keyname, options.verbose)))
+      handles.append(cls.copy_ssh_keys_to_node_async(
+        public_ip, options.keyname, options.verbose))
     for handle in handles:
       handle.join()
 
@@ -468,9 +466,8 @@ class RemoteHelper(object):
     handles = []
     for node in node_layout.nodes:
       try:
-        handles.append(threaded(
-          cls.ensure_machine_is_compatible(node.public_ip, options.keyname,
-                                           options.verbose)))
+        handles.append(cls.ensure_machine_is_compatible_async(
+          node.public_ip, options.keyname, options.verbose))
       except AppScaleException as ase:
         if options.infrastructure:
           if not options.test:
@@ -1056,3 +1053,8 @@ class RemoteHelper(object):
     return subprocess.Popen(['ssh', '-i', key_path, user_login, command],
                             shell, stdout=subprocess.PIPE)
 
+
+  sleep_until_port_is_open_async = threaded(sleep_until_port_is_open)
+  ensure_machine_is_compatible_async = threaded(ensure_machine_is_compatible)
+  enable_root_login_async = threaded(enable_root_login)
+  copy_ssh_keys_to_node_async = threaded(copy_ssh_keys_to_node)
