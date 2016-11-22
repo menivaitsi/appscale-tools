@@ -303,7 +303,8 @@ class AzureAgent(BaseAgent):
     handles = []
     for _ in range(count):
       handles.append(self.create_vm_bundle_async(
-        network_client, subnet, parameters, resource_group, credentials))
+        credentials, subscription_id, network_client, subnet, parameters,
+        resource_group))
     for handle in handles:
        handle.join()
 
@@ -313,8 +314,9 @@ class AzureAgent(BaseAgent):
     return instance_ids, public_ips, private_ips
 
 
-  def create_vm_bundle(self, network_client, subnet, parameters,
-                       resource_group, credentials):
+  def create_vm_bundle(self, credentials, subscription_id, subnet, parameters,
+                       resource_group):
+    network_client = NetworkManagementClient(credentials, subscription_id)
     vm_network_name = Haikunator().haikunate()
 
     self.create_network_interface(network_client, vm_network_name,
