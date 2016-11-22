@@ -216,7 +216,7 @@ class RemoteHelper(object):
 
     handles = []
     for public_ip in public_ips:
-      handles.append(cls.sleep_until_port_is_open_async(
+      handles.append(sleep_until_port_is_open_async(
         public_ip, cls.SSH_PORT, options.verbose))
     for handle in handles:
       handle.join()
@@ -232,7 +232,7 @@ class RemoteHelper(object):
     # Enable root login on all machines in a multi-threaded fashion.
     handles = []
     for public_ip in public_ips:
-      handles.append(cls.enable_root_login_async(
+      handles.append(enable_root_login_async(
         public_ip, options.keyname, options.infrastructure, options.verbose))
     for handle in handles:
       handle.join()
@@ -240,7 +240,7 @@ class RemoteHelper(object):
     # Copy SSH keys on all machines in a multi-threaded fashion.
     handles = []
     for public_ip in public_ips:
-      handles.append(cls.copy_ssh_keys_to_node_async(
+      handles.append(copy_ssh_keys_to_node_async(
         public_ip, options.keyname, options.verbose))
     for handle in handles:
       handle.join()
@@ -466,7 +466,7 @@ class RemoteHelper(object):
     handles = []
     for node in node_layout.nodes:
       try:
-        handles.append(cls.ensure_machine_is_compatible_async(
+        handles.append(ensure_machine_is_compatible_async(
           node.public_ip, options.keyname, options.verbose))
       except AppScaleException as ase:
         if options.infrastructure:
@@ -1054,7 +1054,7 @@ class RemoteHelper(object):
                             shell, stdout=subprocess.PIPE)
 
 
-  sleep_until_port_is_open_async = threaded(sleep_until_port_is_open)
-  ensure_machine_is_compatible_async = threaded(ensure_machine_is_compatible)
-  enable_root_login_async = threaded(enable_root_login)
-  copy_ssh_keys_to_node_async = threaded(copy_ssh_keys_to_node)
+sleep_until_port_is_open_async = threaded(RemoteHelper.sleep_until_port_is_open)
+ensure_machine_is_compatible_async = threaded(RemoteHelper.ensure_machine_is_compatible)
+enable_root_login_async = threaded(RemoteHelper.enable_root_login)
+copy_ssh_keys_to_node_async = threaded(RemoteHelper.copy_ssh_keys_to_node)
