@@ -303,8 +303,7 @@ class AzureAgent(BaseAgent):
     handles = []
     for _ in range(count):
       handles.append(self.create_vm_bundle_async(
-        credentials, subscription_id, network_client, subnet, parameters,
-        resource_group))
+        credentials, subscription_id, subnet, parameters, resource_group))
     for handle in handles:
        handle.join()
 
