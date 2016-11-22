@@ -251,26 +251,42 @@ class AzureAgent(BaseAgent):
     private_ips = []
     instance_ids = []
 
-    resource_identifiers = []
-    while not self.RI_CACHE.empty():
-      resource_identifier = self.RI_CACHE.get()
-      resource_identifiers.append(resource_identifier)
+    if self.RI_CACHE.empty():
+      public_ip_addresses = network_client.public_ip_addresses.\
+        list(resource_group)
+      for public_ip in public_ip_addresses:
+        public_ips.append(public_ip.ip_address)
 
-      public_ip = network_client.public_ip_addresses.get(
-        resource_group, resource_identifier)
-      public_ips.append(public_ip.ip_address)
+      network_interfaces = network_client.network_interfaces.\
+        list(resource_group)
+      for network_interface in network_interfaces:
+        for ip_config in network_interface.ip_configurations:
+          private_ips.append(ip_config.private_ip_address)
 
-      network_interface = network_client.network_interfaces.get(
-        resource_group, resource_identifier)
-      for ip_config in network_interface.ip_configurations:
-        private_ips.append(ip_config.private_ip_address)
+      virtual_machines = compute_client.virtual_machines.list(resource_group)
+      for vm in virtual_machines:
+        instance_ids.append(vm.name)
+    else:
+      resource_identifiers = []
+      while not self.RI_CACHE.empty():
+        resource_identifier = self.RI_CACHE.get()
+        resource_identifiers.append(resource_identifier)
 
-      virtual_machine = compute_client.virtual_machines.get(
-        resource_group, resource_identifier)
-      instance_ids.append(virtual_machine.name)
+        public_ip = network_client.public_ip_addresses.get(
+          resource_group, resource_identifier)
+        public_ips.append(public_ip.ip_address)
 
-    for resource_identifier in resource_identifiers:
-      self.RI_CACHE.put(resource_identifier)
+        network_interface = network_client.network_interfaces.get(
+          resource_group, resource_identifier)
+        for ip_config in network_interface.ip_configurations:
+          private_ips.append(ip_config.private_ip_address)
+
+        virtual_machine = compute_client.virtual_machines.get(
+          resource_group, resource_identifier)
+        instance_ids.append(virtual_machine.name)
+
+      for resource_identifier in resource_identifiers:
+        self.RI_CACHE.put(resource_identifier)
 
     return public_ips, private_ips, instance_ids
 
