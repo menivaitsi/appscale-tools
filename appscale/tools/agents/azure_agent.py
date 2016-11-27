@@ -619,16 +619,16 @@ class AzureAgent(BaseAgent):
         Microsoft Azure.
     """
     params = {
-      self.PARAM_GROUP: LocalState.get_group(keyname),
+      self.PARAM_GROUP: str(LocalState.get_group(keyname)),
       self.PARAM_KEYNAME: keyname,
       self.PARAM_VERBOSE: True,
-      self.PARAM_ZONE: LocalState.get_zone(keyname),
-      self.PARAM_SUBSCRIBER_ID: LocalState.get_subscription_id(keyname),
-      self.PARAM_APP_ID: LocalState.get_app_id(keyname),
-      self.PARAM_APP_SECRET: LocalState.get_app_secret_key(keyname),
-      self.PARAM_TENANT_ID: LocalState.get_tenant_id(keyname),
-      self.PARAM_RESOURCE_GROUP: LocalState.get_resource_group(keyname),
-      self.PARAM_STORAGE_ACCOUNT: LocalState.get_storage_account(keyname),
+      self.PARAM_ZONE: str(LocalState.get_zone(keyname)),
+      self.PARAM_SUBSCRIBER_ID: str(LocalState.get_subscription_id(keyname)),
+      self.PARAM_APP_ID: str(LocalState.get_app_id(keyname)),
+      self.PARAM_APP_SECRET: str(LocalState.get_app_secret_key(keyname)),
+      self.PARAM_TENANT_ID: str(LocalState.get_tenant_id(keyname)),
+      self.PARAM_RESOURCE_GROUP: str(LocalState.get_resource_group(keyname)),
+      self.PARAM_STORAGE_ACCOUNT: str(LocalState.get_storage_account(keyname)),
     }
     return params
 
