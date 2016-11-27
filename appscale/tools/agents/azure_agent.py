@@ -469,27 +469,26 @@ class AzureAgent(BaseAgent):
     subscription_id = parameters[self.PARAM_SUBSCRIBER_ID]
     verbose = parameters[self.PARAM_VERBOSE]
     public_ips, private_ips, instance_ids = self.describe_instances(parameters)
-    AppScaleLogger.verbose("Terminating the vm instance/s '{}'".
-                           format(instance_ids), verbose)
-    compute_client = ComputeManagementClient(credentials, subscription_id)
 
     handles = []
     for vm_name in instance_ids:
       handles.append(self.delete_virtual_machine_async(
-        compute_client, resource_group, verbose, vm_name))
+        credentials, subscription_id, resource_group, verbose, vm_name))
     for handle in handles:
       handle.join()
 
 
-  def delete_virtual_machine(self, compute_client, resource_group, verbose,
-                             vm_name):
+  def delete_virtual_machine(self, credentials, subscription_id,
+                             resource_group, verbose, vm_name):
     """ Deletes the virtual machine from the resource_group specified.
     Args:
-      compute_client: An instance of the Compute Management client.
+      credentials: A ServicePrincipalCredentials object.
+      subscription_id: A string, the subscription ID.
       resource_group: The resource group name to use for this deployment.
       verbose: A boolean indicating whether or not the verbose mode is on.
       vm_name: The name of the virtual machine to be deleted.
     """
+    compute_client = ComputeManagementClient(credentials, subscription_id)
     result = compute_client.virtual_machines.delete(resource_group, vm_name)
     resource_name = 'Virtual Machine' + ':' + vm_name
     self.sleep_until_delete_operation_done(result, resource_name,
