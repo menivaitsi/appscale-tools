@@ -152,7 +152,7 @@ class AzureAgent(BaseAgent):
   MICROSOFT_STORAGE_RESOURCE = 'Microsoft.Storage'
 
   # Resource Identifier Cache for Azure. Each Resource Identifier matches a
-  #  Public IP Address, a Network Interface and a Virtual Machine.
+  # Public IP Address, a Network Interface and a Virtual Machine.
   RI_CACHE = Queue()
 
 
@@ -338,6 +338,16 @@ class AzureAgent(BaseAgent):
 
   def create_vm_bundle(self, credentials, subscription_id, subnet, parameters,
                        resource_group):
+    """ Creates the necessary resources for a Virtual Machine (Public IP
+    Address, Network Interface and Virtual Machine).
+
+    Args:
+      credentials: A ServicePrincipalCredentials object.
+      subscription_id: A string, the subscription ID.
+      subnet: A virtual network subnet.
+      parameters: A dictionary of parameters necessary to create resources.
+      resource_group: An Azure resource group.
+    """
     network_client = NetworkManagementClient(credentials, subscription_id)
     vm_network_name = Haikunator().haikunate()
 
