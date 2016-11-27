@@ -127,12 +127,16 @@ class AzureAgent(BaseAgent):
   SLEEP_TIME = 10
 
   # The maximum number of seconds to wait for Azure resources
-  # to get created/updated.
-  MAX_SLEEP_TIME = 60
+  # to get deleted.
+  MAX_RI_DELETION_TIME = 5 * 60
 
   # The maximum number of seconds to wait for an Azure VM to be created.
   # (Takes longer than the creation time for other resources.)
-  MAX_VM_CREATION_TIME = 300
+  MAX_VM_CREATION_TIME = 5 * 60
+
+  # The maximum number of seconds to wait for an Azure VM to be deleted.
+  # (Takes longer than the creation time for other resources.)
+  MAX_VM_DELETION_TIME = 15 * 60
 
   # The Virtual Network and Subnet name to use while creating an Azure
   # Virtual machine.
@@ -346,7 +350,6 @@ class AzureAgent(BaseAgent):
 
     self.create_virtual_machine(credentials, network_client,
       network_interface.id, parameters, vm_network_name)
-    time.sleep(2 * self.SLEEP_TIME)
     self.RI_CACHE.put(vm_network_name)
 
 
@@ -477,7 +480,7 @@ class AzureAgent(BaseAgent):
     result = compute_client.virtual_machines.delete(resource_group, vm_name)
     resource_name = 'Virtual Machine' + ':' + vm_name
     self.sleep_until_delete_operation_done(result, resource_name,
-                                           self.MAX_VM_CREATION_TIME, verbose)
+                                           self.MAX_VM_DELETION_TIME, verbose)
 
 
   def does_address_exist(self, parameters):
@@ -675,14 +678,16 @@ class AzureAgent(BaseAgent):
           of the operation being performed.
         resource_name: The name of the resource being updated.
     """
-    sleep_time = self.MAX_SLEEP_TIME
+    sleep_time = self.MAX_VM_CREATION_TIME
     while sleep_time > 0:
       if result.done():
-        break
+        return
       AppScaleLogger.verbose("Waiting {0} second(s) for {1} to be created/updated.".
                              format(self.SLEEP_TIME, resource_name), verbose)
       time.sleep(self.SLEEP_TIME)
       sleep_time -= self.SLEEP_TIME
+    AppScaleLogger.warn("{} was not created in time. Proceeding anyway.".\
+                        format(resource_name))
 
 
   def sleep_until_delete_operation_done(self, result, resource_name,
@@ -700,11 +705,13 @@ class AzureAgent(BaseAgent):
     sleep_time = max_sleep
     while sleep_time > 0:
       if result.done():
-        break
+        return
       AppScaleLogger.verbose("Waiting {0} second(s) for {1} to be deleted.".
                              format(self.SLEEP_TIME, resource_name), verbose)
       time.sleep(self.SLEEP_TIME)
       sleep_time -= self.SLEEP_TIME
+    AppScaleLogger.warn("{} was not terminated in time. Proceeding anyway.".\
+                        format(resource_name))
 
 
   def create_resource_group(self, parameters, credentials):
@@ -913,7 +920,7 @@ class AzureAgent(BaseAgent):
                                                       interface.name)
     resource_name = 'Network Interface' + ':' + interface.name
     self.sleep_until_delete_operation_done(result, resource_name,
-                                           self.MAX_SLEEP_TIME, verbose)
+                                           self.MAX_RI_DELETION_TIME, verbose)
 
 
   def delete_public_ip(self, network_client, resource_group, public_ip,
@@ -930,7 +937,7 @@ class AzureAgent(BaseAgent):
                                                        public_ip.name)
     resource_name = 'Public IP Address' + ':' + public_ip.name
     self.sleep_until_delete_operation_done(result, resource_name,
-                                           self.MAX_SLEEP_TIME, verbose)
+                                           self.MAX_RI_DELETION_TIME, verbose)
 
 
   def delete_vnet(self, network_client, resource_group, network,
@@ -947,4 +954,4 @@ class AzureAgent(BaseAgent):
                                                     network.name)
     resource_name = 'Virtual Network' + ':' + network.name
     self.sleep_until_delete_operation_done(result, resource_name,
-                                           self.MAX_SLEEP_TIME, verbose)
+                                           self.MAX_RI_DELETION_TIME, verbose)
