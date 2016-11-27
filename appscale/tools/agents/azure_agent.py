@@ -292,6 +292,9 @@ class AzureAgent(BaseAgent):
       for resource_identifier in resource_identifiers:
         self.RI_CACHE.put(resource_identifier)
 
+    AppScaleLogger.verbose("describe_instances: {} Resource Identifiers".\
+                           format(len(instance_ids)), is_verbose)
+
     return public_ips, private_ips, instance_ids
 
 
@@ -328,8 +331,8 @@ class AzureAgent(BaseAgent):
        handle.join()
 
     public_ips, private_ips, instance_ids = self.describe_instances(parameters)
-    AppScaleLogger.verbose("Instance Info:\n{}\n{}\n{}".format(public_ips,
-                           private_ips, instance_ids), is_verbose)
+    AppScaleLogger.verbose("run_instances: {} Resource Identifiers:\n{}".\
+                           format(len(instance_ids), instance_ids), is_verbose)
     return instance_ids, public_ips, private_ips
 
 
@@ -880,7 +883,7 @@ class AzureAgent(BaseAgent):
     verbose = parameters[self.PARAM_VERBOSE]
 
     AppScaleLogger.log("Deleting Virtual Network(s), Public IP Address(es) "
-      "and Network Interface(s) created for this deployment.")
+                       "and Network Interface(s) created for this deployment.")
 
     handles = []
     network_interfaces = network_client.network_interfaces.list(resource_group)
