@@ -246,6 +246,7 @@ class AzureAgent(BaseAgent):
       private_ips: A list of private IP addresses.
       instance_ids: A list of unique Azure VM names.
     """
+    is_verbose = parameters[self.PARAM_VERBOSE]
     credentials = self.open_connection(parameters)
     subscription_id = parameters[self.PARAM_SUBSCRIBER_ID]
     resource_group = parameters[self.PARAM_RESOURCE_GROUP]
