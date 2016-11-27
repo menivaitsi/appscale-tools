@@ -441,7 +441,7 @@ class AzureAgent(BaseAgent):
           break
         AppScaleLogger.verbose("Waiting {} second(s) for IP address to be "
           "available".format(self.SLEEP_TIME), verbose)
-        time.sleep(sleep_time)
+        time.sleep(self.SLEEP_TIME)
         sleep_time -= self.SLEEP_TIME
       except ClientRequestError as client_request_error:
         AppScaleLogger.warn("Azure Connection Error: {}. Retrying...".format(
