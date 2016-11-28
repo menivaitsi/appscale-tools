@@ -890,6 +890,7 @@ class AzureAgent(BaseAgent):
     resource_group = parameters[self.PARAM_RESOURCE_GROUP]
     credentials = self.open_connection(parameters)
     verbose = parameters[self.PARAM_VERBOSE]
+    network_client = NetworkManagementClient(credentials, subscription_id)
 
     AppScaleLogger.log("Deleting Virtual Network(s), Public IP Address(es) "
                        "and Network Interface(s) created for this deployment.")
