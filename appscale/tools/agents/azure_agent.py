@@ -132,7 +132,7 @@ class AzureAgent(BaseAgent):
 
   # The maximum number of seconds to wait for an Azure VM to be created.
   # (Takes longer than the creation time for other resources.)
-  MAX_VM_CREATION_TIME = 5 * 60
+  MAX_VM_CREATION_TIME = 10 * 60
 
   # The maximum number of seconds to wait for an Azure VM to be deleted.
   # (Takes longer than the creation time for other resources.)
