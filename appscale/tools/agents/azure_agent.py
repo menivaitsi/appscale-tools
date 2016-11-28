@@ -889,7 +889,6 @@ class AzureAgent(BaseAgent):
     subscription_id = parameters[self.PARAM_SUBSCRIBER_ID]
     resource_group = parameters[self.PARAM_RESOURCE_GROUP]
     credentials = self.open_connection(parameters)
-    network_client = NetworkManagementClient(credentials, subscription_id)
     verbose = parameters[self.PARAM_VERBOSE]
 
     AppScaleLogger.log("Deleting Virtual Network(s), Public IP Address(es) "
@@ -899,36 +898,42 @@ class AzureAgent(BaseAgent):
     network_interfaces = network_client.network_interfaces.list(resource_group)
     for interface in network_interfaces:
       handles.append(self.delete_nic_async(
-        network_client, resource_group, interface, verbose))
+        credentials, subscription_id, resource_group, interface, verbose))
     for handle in handles:
       handle.join()
+
+    time.sleep(self.SLEEP_TIME)
 
     handles = []
     public_ip_addresses = network_client.public_ip_addresses.list(resource_group)
     for public_ip in public_ip_addresses:
       handles.append(self.delete_public_ip_async(
-        network_client, resource_group, public_ip, verbose))
+        credentials, subscription_id, resource_group, public_ip, verbose))
     for handle in handles:
       handle.join()
+
+    time.sleep(self.SLEEP_TIME)
 
     handles = []
     virtual_networks = network_client.virtual_networks.list(resource_group)
     for network in virtual_networks:
       handles.append(self.delete_vnet_async(
-        network_client, resource_group, network, verbose))
+        credentials, subscription_id, resource_group, network, verbose))
     for handle in handles:
       handle.join()
 
 
-  def delete_nic(self, network_client, resource_group, interface, verbose):
+  def delete_nic(self, credentials, subscription_id, resource_group, interface, verbose):
     """ Deletes given network interface.
 
     Args:
-      network_client: An Azure NetworkManagementClient object.
+      credentials: A ServicePrincipalCredentials object.
+      subscription_id: A string, the subscription ID.
       resource_group: A string representing an Azure Resource Group.
       interface: The Azure network interface resource to be deleted.
       verbose: A boolean, True if debug mode is on, False otherwise.
     """
+    network_client = NetworkManagementClient(credentials, subscription_id)
     result = network_client.network_interfaces.delete(resource_group,
                                                       interface.name)
     resource_name = 'Network Interface' + ':' + interface.name
@@ -936,16 +941,18 @@ class AzureAgent(BaseAgent):
                                            self.MAX_RI_DELETION_TIME, verbose)
 
 
-  def delete_public_ip(self, network_client, resource_group, public_ip,
+  def delete_public_ip(self, credentials, subscription_id, resource_group, public_ip,
                        verbose):
     """ Deletes given public IP address.
 
     Args:
-      network_client: An Azure NetworkManagementClient object.
+      credentials: A ServicePrincipalCredentials object.
+      subscription_id: A string, the subscription ID.
       resource_group: A string representing an Azure Resource Group.
       public_ip: The Azure Public IP Address resource to be deleted.
       verbose: A boolean, True if debug mode is on, False otherwise.
     """
+    network_client = NetworkManagementClient(credentials, subscription_id)
     result = network_client.public_ip_addresses.delete(resource_group,
                                                        public_ip.name)
     resource_name = 'Public IP Address' + ':' + public_ip.name
@@ -953,16 +960,18 @@ class AzureAgent(BaseAgent):
                                            self.MAX_RI_DELETION_TIME, verbose)
 
 
-  def delete_vnet(self, network_client, resource_group, network,
+  def delete_vnet(self, credentials, subscription_id, resource_group, network,
                   verbose):
     """ Deletes given virtual network.
 
     Args:
-      network_client: An Azure NetworkManagementClient object.
+      credentials: A ServicePrincipalCredentials object.
+      subscription_id: A string, the subscription ID.
       resource_group: A string representing an Azure Resource Group.
       vnet: The Azure Virtual Network resource to be deleted.
       verbose: A boolean, True if debug mode is on, False otherwise.
     """
+    network_client = NetworkManagementClient(credentials, subscription_id)
     result = network_client.virtual_networks.delete(resource_group,
                                                     network.name)
     resource_name = 'Virtual Network' + ':' + network.name
