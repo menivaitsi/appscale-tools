@@ -226,14 +226,12 @@ class AppScaleTools(object):
     login_acc = AppControllerClient(login_host,
       LocalState.get_secret_key(options.keyname))
 
-    for ip in login_acc.get_all_public_ips():
-      acc = AppControllerClient(ip, LocalState.get_secret_key(options.keyname))
-      AppScaleLogger.log("Status of node at {0}:".format(ip))
-      try:
-        AppScaleLogger.log(acc.get_status())
-      except Exception as exception:
-        AppScaleLogger.warn("Unable to contact machine: {0}\n".
-          format(str(exception)))
+    AppScaleLogger.log("Status of node at {0}:".format(login_host))
+    try:
+      AppScaleLogger.log(login_acc.get_status())
+    except Exception as exception:
+      AppScaleLogger.warn("Unable to contact machine: {0}\n".
+        format(str(exception)))
 
     AppScaleLogger.success("View status information about your AppScale " + \
       "deployment at http://{0}:{1}/status".format(login_host,
